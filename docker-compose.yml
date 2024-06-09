@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  chat-llama:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    container_name: chat-llama
+    volumes:
+      - ./models:/code/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
