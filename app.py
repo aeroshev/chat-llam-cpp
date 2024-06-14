@@ -53,6 +53,7 @@ def instantiate_llm() -> LlamaCpp:
 
 llm: LlamaCpp = instantiate_llm()
 
+
 add_llm_provider(
     LangchainGenericProvider(
         id=llm._llm_type,
@@ -89,8 +90,6 @@ async def prepare_chat() -> None:
     )
 
     cl.user_session.set("conv_chain", conversation)
-
-
 
 
 @cl.on_message
