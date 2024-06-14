@@ -22,4 +22,6 @@ services:
               capabilities: [gpu]
 
 volumes:
-  backend_llama-volume:
+  llama-volume:
+    name: backend_llama-volume
+    external: true
