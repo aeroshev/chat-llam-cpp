@@ -1,26 +1,46 @@
-from langchain.llms.llamacpp import LlamaCpp
-from langchain.prompts import PromptTemplate
-from langchain.chains import ConversationChain
-from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+import os
+from pathlib import Path
+from typing import Final
 
 import chainlit as cl
 from chainlit.playground.config import add_llm_provider
 from chainlit.playground.providers.langchain import LangchainGenericProvider
+from langchain.chains import ConversationChain
+from langchain.chains.conversation.memory import ConversationBufferWindowMemory
+from langchain.llms.llamacpp import LlamaCpp
+from langchain.prompts import PromptTemplate
 
+MODEL_NAME: Final[str] = os.environ['MODEL_NAME']
 
-# Download the file here https://huggingface.co/TheBloke/Yarn-Llama-2-7B-128K-GGUF/tree/main
-# and update the path
-MODEL_PATH = "./models/model-q4_K.gguf"
+MODEL_PATH: Final[Path] =  Path(__file__) / "models" / MODEL_NAME
+
+ASK_USER: Final[str] = "Задайте системный промпт для модели LlaMa 3 или введите пустое поле, если хотите использовать стандартный"
+
+TEMPLATE: Final[str] = """### System Prompt
+Ты — Сайга, русскоязычный автоматический ассистент. Ты разговариваешь с людьми и помогаешь им. Отвечай только на русском языке и ничего не придумывай.
+
+### Current conversation:
+{history}
+
+### User Message
+{input}
+
+### Assistant"""
 
 
 @cl.cache
-def instantiate_llm():
-    n_batch = (
+def instantiate_llm() -> LlamaCpp:
+    """
+    Сохранить в кэше приложения инстанцированную модель.
+    :param:
+    :return: объект LLM.
+    """
+    n_batch: int = (
         4096  # Should be between 1 and n_ctx, consider the amount of VRAM in your GPU.
     )
     # Make sure the model path is correct for your system!
-    llm = LlamaCpp(
-        model_path=MODEL_PATH,
+    llm: LlamaCpp = LlamaCpp(
+        model_path=MODEL_PATH.as_posix(),
         n_batch=n_batch,
         n_gpu_layers=-1,
         n_ctx=4096,
@@ -31,7 +51,7 @@ def instantiate_llm():
     return llm
 
 
-llm = instantiate_llm()
+llm: LlamaCpp = instantiate_llm()
 
 add_llm_provider(
     LangchainGenericProvider(
@@ -44,42 +64,49 @@ add_llm_provider(
 
 
 @cl.on_chat_start
-def main():
-    template = """### System Prompt
-Ты — Сайга, русскоязычный автоматический ассистент. Ты разговариваешь с людьми и помогаешь им. Отвечай только на русском языке и ничего не придумывай.
+async def prepare_chat() -> None:
+    """
+    Подготовить чат для работы с пользователем.
+    :param:
+    :return:
+    """
+    res: dict = await cl.AskUserMessage(content=ASK_USER).send()
+    if res and len(res['output']) > 1:
+        template: str = res['output']
+    else:
+        template: str = TEMPLATE
+        
 
-### Current conversation:
-{history}
-
-### User Message
-{input}
-
-### Assistant"""
-
-    prompt = PromptTemplate(
+    prompt: PromptTemplate = PromptTemplate(
         template=template,
         input_variables=["history", "input"]
     )
 
-    conversation = ConversationChain(
+    conversation: ConversationChain = ConversationChain(
         prompt=prompt,
         llm=llm,
-        memory=ConversationBufferWindowMemory(k=10),
-        verbose=True
+        memory=ConversationBufferWindowMemory(k=10)
     )
 
     cl.user_session.set("conv_chain", conversation)
 
 
-@cl.on_message
-async def main(message: cl.Message):
-    conversation = cl.user_session.get("conv_chain")
 
-    cb = cl.LangchainCallbackHandler(
+
+@cl.on_message
+async def on_message(message: cl.Message) -> None:
+    """
+    Ответить на вопрос пользователя в чате.
+    :param message: объект запрос с приложения chainlit.
+    :return:
+    """
+    conversation: ConversationChain = cl.user_session.get("conv_chain")
+
+    cb: cl.LangchainCallbackHandler = cl.LangchainCallbackHandler(
         stream_final_answer=True,
         answer_prefix_tokens=["Assistant"]
     )
 
     cb.answer_reached = True
 
-    res = await cl.make_async(conversation)(message.content, callbacks=[cb])
+    await cl.make_async(conversation)(message.content, callbacks=[cb])

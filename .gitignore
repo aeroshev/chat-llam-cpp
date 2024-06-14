@@ -164,3 +164,7 @@ cython_debug/
 # Chainlit
 .chainlit
 *.gguf
+
+# Lint
+.isort.cfg
+.flake8

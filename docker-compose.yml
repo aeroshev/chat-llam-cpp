@@ -10,6 +10,8 @@ services:
     container_name: chat-llama
     volumes:
       - ./models:/code/models
+    environment:
+      - MODEL_NAME=model-q4_K.gguf
     deploy:
       resources:
         reservations:
