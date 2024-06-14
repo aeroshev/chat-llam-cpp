@@ -12,7 +12,7 @@ from langchain.prompts import PromptTemplate
 
 MODEL_NAME: Final[str] = os.environ['MODEL_NAME']
 
-MODEL_PATH: Final[Path] =  Path(__file__) / "models" / MODEL_NAME
+MODEL_PATH: Final[Path] =  Path(__file__).parent / "models" / MODEL_NAME
 
 ASK_USER: Final[str] = "Задайте системный промпт для модели LlaMa 3 или введите пустое поле, если хотите использовать стандартный"
 
