@@ -11,7 +11,7 @@ services:
     volumes:
       - llama-volumes:/code/models
     environment:
-      - MODEL_NAME=model-q4_K.gguf
+      - MODEL_NAME=Meta-Llama-3-8B-Instruct.Q5_0.gguf
       - WINDOW_SIZE=10
     deploy:
       resources:
