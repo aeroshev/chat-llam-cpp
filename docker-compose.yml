@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     container_name: chat-llama
     volumes:
-      -  backend_llama-volumes:/code/models
+      -  backend_llama-volume:/code/models
     environment:
       - MODEL_NAME=Meta-Llama-3-8B-Instruct.Q5_0.gguf
       - WINDOW_SIZE=10
