@@ -11,6 +11,7 @@ from langchain.llms.llamacpp import LlamaCpp
 from langchain.prompts import PromptTemplate
 
 MODEL_NAME: Final[str] = os.environ['MODEL_NAME']
+WINDOW_SIZE: Final[int] = int(os.environ.get('WINDOW_SIZE', 10))
 
 MODEL_PATH: Final[Path] =  Path(__file__).parent / "models" / MODEL_NAME
 
@@ -76,6 +77,10 @@ async def prepare_chat() -> None:
         template: str = res['output']
     else:
         template: str = TEMPLATE
+    
+    await cl.Message(
+        content=f"Для работы выбран промпт - {template}"
+    ).send()
         
 
     prompt: PromptTemplate = PromptTemplate(
@@ -86,7 +91,7 @@ async def prepare_chat() -> None:
     conversation: ConversationChain = ConversationChain(
         prompt=prompt,
         llm=llm,
-        memory=ConversationBufferWindowMemory(k=10)
+        memory=ConversationBufferWindowMemory(k=WINDOW_SIZE)
     )
 
     cl.user_session.set("conv_chain", conversation)

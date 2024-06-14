@@ -12,6 +12,7 @@ services:
       - ./models:/code/models
     environment:
       - MODEL_NAME=model-q4_K.gguf
+      - WINDOW_SIZE=10
     deploy:
       resources:
         reservations:
