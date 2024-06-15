@@ -6,14 +6,9 @@ import chainlit as cl
 from chainlit.playground.config import add_llm_provider
 from chainlit.playground.providers.langchain import LangchainGenericProvider
 from langchain.chains import ConversationChain
+from langchain.prompts import PromptTemplate
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
 from langchain_community.llms import LlamaCpp
-from langchain_core.messages import SystemMessage
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    MessagesPlaceholder
-)
 
 MODEL_NAME: Final[str] = os.environ['MODEL_NAME']
 WINDOW_SIZE: Final[int] = int(os.environ.get('WINDOW_SIZE', 10))
@@ -23,6 +18,16 @@ MODEL_PATH: Final[Path] =  Path(__file__).parent / "models" / MODEL_NAME
 ASK_USER: Final[str] = "Задайте системный промпт для модели LlaMa 3 или введите пустое поле, если хотите использовать стандартный"
 
 DEFAULT_SYSTEM_PROMPT: Final[str] = "Ты — Сайга, русскоязычный автоматический ассистент. Ты разговариваешь с людьми и помогаешь им. Отвечай только на русском языке и ничего не придумывай."
+
+SYSTEM_TEMPLATE: Final[str] = """
+<|begin_of_text|><|start_header_id|>system<|end_header_id|>{system}<|eot_id|>
+"""
+
+CONVERSATION_TEMPLATE: Final[str] = """
+<|start_header_id|>current conversational<|end_header_id|>{history}<|eot_id|>
+<|start_header_id|>user<|end_header_id|>{input}<|eot_id|>
+<|start_header_id|>assistant<|end_header_id|>
+"""
 
 
 @cl.cache
@@ -77,23 +82,18 @@ async def prepare_chat() -> None:
     await cl.Message(
         content=f"Для работы выбран системный промпт:\n{system}"
     ).send()
-        
 
-    prompt: ChatPromptTemplate = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(content=system),
-            MessagesPlaceholder(variable_name="chat_history"),
-            HumanMessagePromptTemplate.from_template("{input}")
-        ]
-    )
+    system_prompt: str = SYSTEM_TEMPLATE.format(system=system)
+    template: str = system_prompt + CONVERSATION_TEMPLATE
+
+    prompt: PromptTemplate = PromptTemplate(template=template, input_variables=["history", "input"])
 
     conversation: ConversationChain = ConversationChain(
         prompt=prompt,
         llm=llm,
         memory=ConversationBufferWindowMemory(
-            memory_key="chat_history",
             k=WINDOW_SIZE,
-            return_messages=True
+            verbose=True
         )
     )
 
@@ -110,7 +110,8 @@ async def on_message(message: cl.Message) -> None:
     conversation: ConversationChain = cl.user_session.get("conv_chain")
 
     cb: cl.LangchainCallbackHandler = cl.LangchainCallbackHandler(
-        stream_final_answer=True
+        stream_final_answer=True,
+        answer_prefix_tokens=["assistant"]
     )
 
     cb.answer_reached = True
