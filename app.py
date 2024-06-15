@@ -92,7 +92,8 @@ async def prepare_chat() -> None:
         llm=llm,
         memory=ConversationBufferWindowMemory(
             memory_key="chat_history",
-            k=WINDOW_SIZE
+            k=WINDOW_SIZE,
+            return_messages=True
         )
     )
 
