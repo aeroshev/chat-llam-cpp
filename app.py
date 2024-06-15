@@ -7,8 +7,13 @@ from chainlit.playground.config import add_llm_provider
 from chainlit.playground.providers.langchain import LangchainGenericProvider
 from langchain.chains import ConversationChain
 from langchain.chains.conversation.memory import ConversationBufferWindowMemory
-from langchain.llms.llamacpp import LlamaCpp
-from langchain.prompts import PromptTemplate
+from langchain_community.llms import LlamaCpp
+from langchain_core.messages import SystemMessage
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
+)
 
 MODEL_NAME: Final[str] = os.environ['MODEL_NAME']
 WINDOW_SIZE: Final[int] = int(os.environ.get('WINDOW_SIZE', 10))
@@ -17,16 +22,7 @@ MODEL_PATH: Final[Path] =  Path(__file__).parent / "models" / MODEL_NAME
 
 ASK_USER: Final[str] = "Задайте системный промпт для модели LlaMa 3 или введите пустое поле, если хотите использовать стандартный"
 
-TEMPLATE: Final[str] = """### System Prompt
-Ты — Сайга, русскоязычный автоматический ассистент. Ты разговариваешь с людьми и помогаешь им. Отвечай только на русском языке и ничего не придумывай.
-
-### Current conversation:
-{history}
-
-### User Message
-{input}
-
-### Assistant"""
+DEFAULT_SYSTEM_PROMPT: Final[str] = "Ты — Сайга, русскоязычный автоматический ассистент. Ты разговариваешь с людьми и помогаешь им. Отвечай только на русском языке и ничего не придумывай."
 
 
 @cl.cache
@@ -74,24 +70,30 @@ async def prepare_chat() -> None:
     """
     res: dict = await cl.AskUserMessage(content=ASK_USER).send()
     if res and len(res['output']) > 1:
-        template: str = res['output']
+        system: str = res['output']
     else:
-        template: str = TEMPLATE
+        system: str = DEFAULT_SYSTEM_PROMPT
     
     await cl.Message(
-        content=f"Для работы выбран промпт - {template}"
+        content=f"Для работы выбран системный промпт:\n{system}"
     ).send()
         
 
-    prompt: PromptTemplate = PromptTemplate(
-        template=template,
-        input_variables=["history", "input"]
+    prompt: ChatPromptTemplate = ChatPromptTemplate.from_messages(
+        [
+            SystemMessage(content=system),
+            MessagesPlaceholder(variable_name="chat_history"),
+            HumanMessagePromptTemplate.from_template("{input}")
+        ]
     )
 
     conversation: ConversationChain = ConversationChain(
         prompt=prompt,
         llm=llm,
-        memory=ConversationBufferWindowMemory(k=WINDOW_SIZE)
+        memory=ConversationBufferWindowMemory(
+            memory_key="chat_history",
+            k=WINDOW_SIZE
+        )
     )
 
     cl.user_session.set("conv_chain", conversation)
