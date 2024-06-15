@@ -12,7 +12,7 @@ from langchain_core.messages import SystemMessage
 from langchain_core.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
-    MessagesPlaceholder,
+    MessagesPlaceholder
 )
 
 MODEL_NAME: Final[str] = os.environ['MODEL_NAME']
@@ -110,8 +110,7 @@ async def on_message(message: cl.Message) -> None:
     conversation: ConversationChain = cl.user_session.get("conv_chain")
 
     cb: cl.LangchainCallbackHandler = cl.LangchainCallbackHandler(
-        stream_final_answer=True,
-        answer_prefix_tokens=["Assistant"]
+        stream_final_answer=True
     )
 
     cb.answer_reached = True
